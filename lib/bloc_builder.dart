@@ -1,57 +1,46 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:micro_bloc/bloc.dart';
 
-typedef BlocWidgetListener<S> = void Function(BuildContext context, S state);
+import 'bloc_listener.dart';
 
-typedef BlocListenerCondition<S> = bool Function(S previous, S current);
+typedef BlocWidgetBuilder<T> = Widget Function(BuildContext context, T state);
+typedef BlocBuilderCondition<S> = bool Function(S previous, S current);
 
-class BlocListener<E, S> extends StatefulWidget {
+@immutable
+class BlocBuilder<E, S> extends StatefulWidget {
+  final BlocBuilderCondition<S>? buildWhen;
+  final BlocWidgetBuilder<S> builder;
   final Bloc<E, S> bloc;
-  final BlocWidgetListener<S> listener;
-  final BlocListenerCondition<S>? listenWhen;
-  final Widget child;
-
-  const BlocListener({
+  const BlocBuilder({
     Key? key,
+    this.buildWhen,
+    required this.builder,
     required this.bloc,
-    required this.listener,
-    required this.child,
-    this.listenWhen,
   }) : super(key: key);
 
   @override
-  _BlocListenerState<E, S> createState() => _BlocListenerState<E, S>();
+  _BlocBuilderState<E, S> createState() => _BlocBuilderState<E, S>();
 }
 
-class _BlocListenerState<E, S> extends State<BlocListener<E, S>> {
-  late S? _previousState;
+class _BlocBuilderState<E, S> extends State<BlocBuilder<E, S>> {
   late Bloc<E, S> _bloc;
-  StreamSubscription<S>? _subscription;
+  late S _state;
 
-  /// Initialize bloc and set the initial state as [_previousState]
   @override
   void initState() {
     super.initState();
     _bloc = widget.bloc;
-    _previousState = _bloc.initial;
-    _subscribe();
+    _state = _bloc.initial;
   }
 
-  ///
   @override
-  void didUpdateWidget(BlocListener<E, S> oldWidget) {
+  void didUpdateWidget(BlocBuilder<E, S> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final Bloc<E, S> oldBloc = oldWidget.bloc;
     final Bloc<E, S> currentBloc = widget.bloc;
     if (oldBloc != currentBloc) {
-      if (_subscription != null) {
-        _unsubscribe();
-        _bloc = currentBloc;
-        _previousState = _bloc.initial;
-      }
-      _subscribe();
+      _bloc = currentBloc;
+      _state = _bloc.initial;
     }
   }
 
@@ -60,33 +49,18 @@ class _BlocListenerState<E, S> extends State<BlocListener<E, S>> {
     super.didChangeDependencies();
     final Bloc<E, S> bloc = widget.bloc;
     if (_bloc != bloc) {
-      if (_subscription != null) {
-        _unsubscribe();
-        _bloc = bloc;
-        _previousState = _bloc.initial;
-      }
-      _subscribe();
+      _bloc = bloc;
+      _state = _bloc.initial;
     }
-  }
-
-  void _subscribe() {
-    _subscription = _bloc.stream.listen((state) {
-      if (mounted &&
-          (widget.listenWhen?.call(_previousState ?? _bloc.initial, state) ??
-              true)) {
-        widget.listener(context, state);
-        _previousState = state;
-      }
-    });
-  }
-
-  void _unsubscribe() {
-    _subscription?.cancel();
-    _subscription = null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    return BlocListener<E, S>(
+      bloc: widget.bloc,
+      listenWhen: widget.buildWhen,
+      listener: (context, state) => setState(() => _state = state),
+      child: widget.builder(context, _state),
+    );
   }
 }
