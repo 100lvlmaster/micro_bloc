@@ -3,6 +3,7 @@ import 'package:example/bloc/counter/counter_events.dart';
 import 'package:example/bloc/counter/counter_state.dart';
 import 'package:flutter/material.dart';
 import 'package:micro_bloc/bloc_builder.dart';
+import 'package:micro_bloc/bloc_listener.dart';
 
 void main() {
   runApp(const MyApp());
@@ -52,26 +53,36 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: BlocBuilder<CounterEvent, CounterState>(
+        child: BlocListener<CounterEvent, CounterState>(
           bloc: _bloc,
-          buildWhen: (previous, current) => current is! ValueBelowZero,
-          builder: (context, CounterState state) {
-            if (state is UpdateValue) {
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  const Text(
-                    'You have pushed the button this many times:',
-                  ),
-                  Text(
-                    '${state.value}',
-                    style: Theme.of(context).textTheme.headline4,
-                  ),
-                ],
+          listener: (context, state) {
+            if (state is ValueBelowZero) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Value is below zero')),
               );
             }
-            return const SizedBox();
           },
+          child: BlocBuilder<CounterEvent, CounterState>(
+            bloc: _bloc,
+            buildWhen: (previous, current) => current is! ValueBelowZero,
+            builder: (context, CounterState state) {
+              if (state is UpdateValue) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    const Text(
+                      'You have pushed the button this many times:',
+                    ),
+                    Text(
+                      '${state.value}',
+                      style: Theme.of(context).textTheme.headline4,
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox();
+            },
+          ),
         ),
       ),
       floatingActionButton: Row(

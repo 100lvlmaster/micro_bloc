@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:example/bloc/counter/counter_state.dart';
 import 'package:micro_bloc/bloc.dart';
 
